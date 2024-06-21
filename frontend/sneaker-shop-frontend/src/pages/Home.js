@@ -1,7 +1,7 @@
 // src/pages/Home.js
-import React from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const HomeWrapper = styled.div`
   display: flex;
@@ -68,7 +68,37 @@ const NavLink = styled(Link)`
   }
 `;
 
+const SignOutButton = styled.button`
+  background: none;
+  border: none;
+  color: #111;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  &:hover {
+    text-decoration: underline;
+  }
+  @media (max-width: 768px) {
+    font-size: 1rem;
+  }
+`;
+
 function Home() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    setIsAuthenticated(!!token);
+  }, []);
+
+  const handleSignOut = () => {
+    localStorage.removeItem("token");
+    setIsAuthenticated(false);
+    // Optionally, you can redirect to the home page or login page
+    // navigate("/");
+  };
+
   return (
     <HomeWrapper>
       <NavBar>
@@ -77,6 +107,11 @@ function Home() {
         <NavLink to="/women">Women</NavLink>
         <NavLink to="/kids">Kids</NavLink>
         <NavLink to="/jordan">Jordan</NavLink>
+        {isAuthenticated ? (
+          <SignOutButton onClick={handleSignOut}>Sign Out</SignOutButton>
+        ) : (
+          <NavLink to="/auth">Sign In</NavLink>
+        )}
       </NavBar>
       <Title>Добро пожаловать в Rise Up Shop</Title>
       <Subtitle>Лучшие кроссовки по доступным ценам</Subtitle>
@@ -84,5 +119,4 @@ function Home() {
     </HomeWrapper>
   );
 }
-
 export default Home;
