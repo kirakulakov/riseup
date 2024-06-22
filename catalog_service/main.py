@@ -1,69 +1,8 @@
 # catalog_service/main.py
-import os
-import threading
-
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String, Float
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from typing import List
 from starlette.middleware.cors import CORSMiddleware
-
-from kafka_utils import get_kafka_consumer
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-
-def handle_user_event(event):
-    if event['event'] == 'user_created':
-        print(f"New user created: {event['username']}")
-        # You can perform any necessary actions here, such as creating a user profile
-
-
-def start_kafka_consumer():
-    consumer = get_kafka_consumer('user_events')
-    for message in consumer:
-        handle_user_event(message.value)
-
-
-# Start Kafka consumer in a separate thread
-kafka_thread = threading.Thread(target=start_kafka_consumer)
-kafka_thread.start()
-
-# Database setup
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
-if not SQLALCHEMY_DATABASE_URL:
-    SQLALCHEMY_DATABASE_URL = "postgresql://postgres:root@localhost/sneakershop"
-
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-
-class Product(Base):
-    __tablename__ = "products"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    description = Column(String)
-    price = Column(Float)
-    image_url = Column(String)
-
-
-Base.metadata.create_all(bind=engine)
-
-
-class ProductCreate(BaseModel):
-    name: str
-    description: str
-    price: float
-    image_url: str
-
-
-class ProductResponse(ProductCreate):
-    id: int
-
 
 app = FastAPI()
 
@@ -75,45 +14,82 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class ProductBase(BaseModel):
+    name: str
+    description: str
+    price: float
+    image_url: str
 
+class ProductCreate(ProductBase):
+    pass
 
-@app.on_event("shutdown")
-def shutdown_event():
-    kafka_thread.join()
+class ProductResponse(ProductBase):
+    id: int
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
+# Hardcoded sneaker data
+sneakers = [
+    {
+        "id": 1,
+        "name": "Nike Air Max 90",
+        "description": "The Air Jordan 1 Retro High is a classic sneaker that never goes out of style.",
+        "price": 9999,
+        "image_url": "https://static.nike.com/a/images/t_PDP_1728_v1/f_auto,q_auto:eco/zwxes8uud05rkuei1mpt/air-max-90-mens-shoes-6n3vKB.png"
+    },
+    {
+        "id": 2,
+        "name": "Nike Air Force 1 LV8 5",
+        "description": "The Nike Air Max 90 is a timeless classic with unmatched comfort and style.",
+        "price": 8999,
+        "image_url": "https://static.nike.com/a/images/t_PDP_1728_v1/f_auto,q_auto:eco/6d742bce-ba92-4e66-8263-0532bbdeb78f/air-force-1-lv8-5-big-kids-shoes-k8Jkw3.png"
+    },
+    {
+        "id": 3,
+        "name": "Nike Air Force 1 '07",
+        "description": "Experience ultimate comfort and energy return with the Adidas Ultraboost.",
+        "price": 8999,
+        "image_url": "https://static.nike.com/a/images/t_PDP_1728_v1/f_auto,q_auto:eco/b7d9211c-26e7-431a-ac24-b0540fb3c00f/air-force-1-07-mens-shoes-jBrhbr.png"
+    },
+    {
+        "id": 4,
+        "name": "Nike Air Force 1 '07 (Women's)",
+        "description": "The Puma RS-X combines retro style with modern technology for a unique look.",
+        "price": 7999,
+        "image_url": "https://static.nike.com/a/images/t_PDP_1728_v1/f_auto,q_auto:eco/8d752b32-17e8-40bc-ac1a-7a8849957a12/air-force-1-07-womens-shoes-PqdxJw.png"
+    },
+    {
+        "id": 5,
+        "name": "Nike Air Force 1 '07 Next Nature",
+        "description": "The New Balance 990v5 offers premium comfort and classic American craftsmanship.",
+        "price": 8999,
+        "image_url": "https://static.nike.com/a/images/t_PDP_1728_v1/f_auto,q_auto:eco/d86cc16f-67d2-4781-a01f-7ea19eeba5cd/air-force-1-07-next-nature-womens-shoes-fvxZ0g.png"
+    },
+    {
+        "id": 6,
+        "name": "Nike Air Force 1 '07 LV8",
+        "description": "The New Balance 990v5 offers premium comfort and classic American craftsmanship.",
+        "price": 8999,
+        "image_url": "https://static.nike.com/a/images/t_PDP_1728_v1/f_auto,q_auto:eco/a9b83f5c-af29-49b5-a784-989974e9c531/air-force-1-07-lv8-mens-shoes-3Q0nlJ.png"
+    }
+]
 
 @app.post("/products", response_model=ProductResponse)
-def create_product(product: ProductCreate, db=Depends(get_db)):
-    db_product = Product(**product.dict())
-    db.add(db_product)
-    db.commit()
-    db.refresh(db_product)
-    return db_product
+def create_product(product: ProductCreate):
+    new_product = product.dict()
+    new_product["id"] = len(sneakers) + 1
+    sneakers.append(new_product)
+    return new_product
 
-
-@app.get("/products", response_model=list[ProductResponse])
-def read_products(skip: int = 0, limit: int = 100, db=Depends(get_db)):
-    products = db.query(Product).offset(skip).limit(limit).all()
-    return products
-
+@app.get("/products", response_model=List[ProductResponse])
+def read_products(skip: int = 0, limit: int = 100):
+    return sneakers[skip : skip + limit]
 
 @app.get("/products/{product_id}", response_model=ProductResponse)
-def read_product(product_id: int, db=Depends(get_db)):
-    product = db.query(Product).filter(Product.id == product_id).first()
-    if product is None:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return product
-
+def read_product(product_id: int):
+    for product in sneakers:
+        if product["id"] == product_id:
+            return product
+    raise HTTPException(status_code=404, detail="Product not found")
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8001)

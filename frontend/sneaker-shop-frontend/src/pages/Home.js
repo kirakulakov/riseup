@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { Link, useNavigate } from "react-router-dom";
+import PopularSneakers from "../components/PopularSneakers";
 
 const HomeWrapper = styled.div`
   display: flex;
@@ -100,7 +101,7 @@ function Home() {
   };
 
   return (
-    <HomeWrapper>
+    <>
       <NavBar>
         <NavLink to="/new-featured">New & Featured</NavLink>
         <NavLink to="/men">Men</NavLink>
@@ -113,10 +114,14 @@ function Home() {
           <NavLink to="/auth">Sign In</NavLink>
         )}
       </NavBar>
-      <Title>Добро пожаловать в Rise Up Shop</Title>
-      <Subtitle>Лучшие кроссовки по доступным ценам</Subtitle>
-      <CTAButton to="/products">Shop Now</CTAButton>
-    </HomeWrapper>
+      <HomeWrapper>
+        <Title>Добро пожаловать в Rise Up Shop</Title>
+        <Subtitle>Лучшие кроссовки по доступным ценам</Subtitle>
+        <CTAButton to="/products">Shop Now</CTAButton>
+        <PopularSneakers />
+      </HomeWrapper>
+    </>
   );
 }
+
 export default Home;
